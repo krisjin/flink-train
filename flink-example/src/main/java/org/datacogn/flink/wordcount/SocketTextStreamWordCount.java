@@ -1,4 +1,4 @@
-package org.datacogn.flink;
+package org.datacogn.flink.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -8,15 +8,17 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
 /**
- * flink run -c org.datacogn.flink.SocketTextStreamWordCount flink-example-1.0-SNAPSHOT.jar 127.0.0.1 9000
- * <p>
- * <p>
+ * <pre>
+ * flink run -c org.datacogn.flink.wordcount.SocketTextStreamWordCount flink-example-1.0-SNAPSHOT.jar 127.0.0.1 9000
+ *
+ *
  * nc -l 9000
- * <p>
- * <p>
- * org.datacogn.flink.SocketTextStreamWordCount
+ *
+ * </pre>
  */
 public class SocketTextStreamWordCount {
+
+
     public static void main(String[] args) throws Exception {
         //参数检查
         if (args.length != 2) {
@@ -35,9 +37,7 @@ public class SocketTextStreamWordCount {
         DataStreamSource<String> stream = env.socketTextStream(hostname, port);
 
         //计数
-        SingleOutputStreamOperator<Tuple2<String, Integer>> sum = stream.flatMap(new LineSplitter())
-                .keyBy(0)
-                .sum(1);
+        SingleOutputStreamOperator<Tuple2<String, Integer>> sum = stream.flatMap(new LineSplitter()).keyBy(0).sum(1);
 
         sum.print();
 
