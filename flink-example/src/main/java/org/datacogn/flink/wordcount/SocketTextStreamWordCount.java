@@ -18,7 +18,6 @@ import org.apache.flink.util.Collector;
  */
 public class SocketTextStreamWordCount {
 
-
     public static void main(String[] args) throws Exception {
         //参数检查
         if (args.length != 2) {
@@ -28,7 +27,6 @@ public class SocketTextStreamWordCount {
 
         String hostname = args[0];
         Integer port = Integer.parseInt(args[1]);
-
 
         // set up the streaming execution environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
