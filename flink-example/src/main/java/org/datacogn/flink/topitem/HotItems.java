@@ -41,7 +41,7 @@ public class HotItems {
         // 告诉系统按照 EventTime 处理
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         // 为了打印到控制台的结果不乱序，我们配置全局的并发为1，改变并发对结果正确性没有影响
-        env.setParallelism(1);
+        env.setParallelism(10);
 
         // UserBehavior.csv 的本地文件路径, 在 resources 目录下
         URL fileUrl = HotItems.class.getClassLoader().getResource("UserBehavior.csv");
@@ -54,9 +54,8 @@ public class HotItems {
         PojoCsvInputFormat<UserBehavior> csvInput = new PojoCsvInputFormat<>(filePath, pojoType, fieldOrder);
 
 
-        env
-                // 创建数据源，得到 UserBehavior 类型的 DataStream
-                .createInput(csvInput, pojoType)
+        // 创建数据源，得到 UserBehavior 类型的 DataStream
+        env.createInput(csvInput, pojoType)
                 // 抽取出时间和生成 watermark
                 .assignTimestampsAndWatermarks(new AscendingTimestampExtractor<UserBehavior>() {
                     @Override
@@ -65,7 +64,6 @@ public class HotItems {
                         return userBehavior.timestamp * 1000;
                     }
                 })
-                // 过滤出只有点击的数据
                 .filter(new FilterFunction<UserBehavior>() {
                     @Override
                     public boolean filter(UserBehavior userBehavior) throws Exception {
@@ -74,7 +72,7 @@ public class HotItems {
                     }
                 })
                 .keyBy("itemId")
-                .timeWindow(Time.minutes(60), Time.minutes(5))
+                .timeWindow(Time.minutes(60), Time.minutes(5))//滑动窗口，窗口大小1小时，滑动步长5分钟
                 .aggregate(new CountAgg(), new WindowResultFunction())
                 .keyBy("windowEnd")
                 .process(new TopNHotItems(3))
