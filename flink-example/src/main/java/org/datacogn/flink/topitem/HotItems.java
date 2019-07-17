@@ -15,8 +15,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
@@ -36,12 +38,12 @@ public class HotItems {
 
     public static void main(String[] args) throws Exception {
 
-        // 创建 execution environment
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // 告诉系统按照 EventTime 处理
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
         // 为了打印到控制台的结果不乱序，我们配置全局的并发为1，改变并发对结果正确性没有影响
-        env.setParallelism(10);
+        env.setParallelism(1);
 
         // UserBehavior.csv 的本地文件路径, 在 resources 目录下
         URL fileUrl = HotItems.class.getClassLoader().getResource("UserBehavior.csv");
@@ -60,7 +62,6 @@ public class HotItems {
                 .assignTimestampsAndWatermarks(new AscendingTimestampExtractor<UserBehavior>() {
                     @Override
                     public long extractAscendingTimestamp(UserBehavior userBehavior) {
-                        // 原始数据单位秒，将其转成毫秒
                         return userBehavior.timestamp * 1000;
                     }
                 })
@@ -72,10 +73,16 @@ public class HotItems {
                     }
                 })
                 .keyBy("itemId")
-                .timeWindow(Time.minutes(60), Time.minutes(5))//滑动窗口，窗口大小1小时，滑动步长5分钟
-                .aggregate(new CountAgg(), new WindowResultFunction())
-                .keyBy("windowEnd")
-                .process(new TopNHotItems(3))
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(3600000)))//滑动窗口，窗口大小1小时，滑动步长5分钟
+                .aggregate(new CountAgg(), new WindowResultFunction()).process(new ProcessFunction<ItemViewCount, Object>() {
+            @Override
+            public void processElement(ItemViewCount data, Context ctx, Collector<Object> out) throws Exception {
+                out.collect("item:" + data.itemId + ", count:" + data.viewCount);
+
+            }
+        })
+//                .keyBy("windowEnd")
+//                .process(new TopNHotItems(3))
                 .print();
 
         env.execute("Hot Items Job");
@@ -117,8 +124,7 @@ public class HotItems {
         }
 
         @Override
-        public void onTimer(
-                long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+        public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
             // 获取收到的所有商品点击量
             List<ItemViewCount> allItems = new ArrayList<>();
             for (ItemViewCount item : itemState.get()) {
@@ -166,6 +172,7 @@ public class HotItems {
                 Iterable<Long> aggregateResult, // 聚合函数的结果，即 count 值
                 Collector<ItemViewCount> collector  // 输出类型为 ItemViewCount
         ) throws Exception {
+
             Long itemId = ((Tuple1<Long>) key).f0;
             Long count = aggregateResult.iterator().next();
             collector.collect(ItemViewCount.of(itemId, window.getEnd(), count));
