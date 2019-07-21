@@ -36,17 +36,17 @@ public class HotItems {
 
     public static void main(String[] args) throws Exception {
 
-
+        // 创建 execution environment
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
+        // 告诉系统按照 EventTime 处理
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
         // 为了打印到控制台的结果不乱序，我们配置全局的并发为1，改变并发对结果正确性没有影响
         env.setParallelism(1);
 
         // UserBehavior.csv 的本地文件路径, 在 resources 目录下
         URL fileUrl = HotItems.class.getClassLoader().getResource("UserBehavior.csv");
         Path filePath = Path.fromLocalFile(new File(fileUrl.toURI()));
-
         // 抽取 UserBehavior 的 TypeInformation，是一个 PojoTypeInfo
         PojoTypeInfo<UserBehavior> pojoType = (PojoTypeInfo<UserBehavior>) TypeExtractor.createTypeInfo(UserBehavior.class);
 
@@ -160,6 +160,7 @@ public class HotItems {
      * 用于输出窗口的结果
      */
     public static class WindowResultFunction implements WindowFunction<Long, ItemViewCount, Tuple, TimeWindow> {
+
         @Override
         public void apply(
                 Tuple key,  // 窗口的主键，即 itemId
@@ -167,13 +168,9 @@ public class HotItems {
                 Iterable<Long> aggregateResult, // 聚合函数的结果，即 count 值
                 Collector<ItemViewCount> collector  // 输出类型为 ItemViewCount
         ) throws Exception {
-
-
             Long itemId = ((Tuple1<Long>) key).f0;
             Long count = aggregateResult.iterator().next();
             collector.collect(ItemViewCount.of(itemId, window.getEnd(), count));
-
-
         }
     }
 
@@ -207,7 +204,6 @@ public class HotItems {
      * 商品点击量(窗口操作的输出类型)
      */
     public static class ItemViewCount {
-
         public long itemId;     // 商品ID
         public long windowEnd;  // 窗口结束时间戳
         public long viewCount;  // 商品的点击量
