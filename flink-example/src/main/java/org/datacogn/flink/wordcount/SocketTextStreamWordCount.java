@@ -1,11 +1,16 @@
 package org.datacogn.flink.wordcount;
 
+import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
+import org.datacogn.flink.trigger.CustomTrigger;
 
 /**
  * <pre>
@@ -33,11 +38,24 @@ public class SocketTextStreamWordCount {
 
         //获取数据
         DataStreamSource<String> stream = env.socketTextStream(hostname, port);
-
+        stream = stream.setParallelism(1);
         //计数
-        SingleOutputStreamOperator<Tuple2<String, Integer>> sum = stream.flatMap(new LineSplitter()).keyBy(0).sum(1);
-
-        sum.print();
+        stream.flatMap(new LineSplitter())
+                .assignTimestampsAndWatermarks((new BoundedOutOfOrdernessTimestampExtractor<Tuple2<String, Integer>>(Time.milliseconds(0)) {
+                    public long extractTimestamp(Tuple2<String, Integer> element) {
+                        return System.currentTimeMillis();
+                    }
+                })).keyBy(0)
+                .timeWindow(Time.minutes(20))
+                .trigger(new CustomTrigger())
+                .aggregate(new WordAgg())
+                .process(new ProcessFunction<Result, Object>() {
+                    @Override
+                    public void processElement(Result value, Context ctx, Collector<Object> out) throws Exception {
+                        out.collect(JSONObject.toJSON(value));
+                    }
+                })
+                .addSink(new PrintSinkFunction<>());
 
         env.execute("Java WordCount from SocketTextStream Example");
     }
