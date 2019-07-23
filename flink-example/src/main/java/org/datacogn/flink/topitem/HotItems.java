@@ -79,7 +79,7 @@ public class HotItems {
                 })
                 .keyBy("itemId").window(TumblingEventTimeWindows.of(Time.milliseconds(Time.hours(1).toMilliseconds())))
 //                .timeWindow(Time.minutes(60))
-//                .trigger(new CustomTrigger())
+//                .trigger(new CountTrigger())
                 .aggregate(new CountAgg(), new WindowResultFunction())
 //                .keyBy("windowEnd")
 //                .process(new TopNHotItems(3))
@@ -271,7 +271,7 @@ public class HotItems {
 
         @Override
         public String toString() {
-            return "CustomTrigger";
+            return "CountTrigger";
         }
 
 //    @Override

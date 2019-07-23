@@ -34,14 +34,16 @@ public class WordAgg implements AggregateFunction<Tuple2<String, Integer>, Acc, 
 
     @Override
     public Result getResult(Acc accumulator) {
+
         if (accumulator != null) {
             Result result = new Result();
 
             result.setCount(accumulator.getCount());
 
+            System.out.println("result:" + System.currentTimeMillis());
+
             return result;
         }
-        System.out.println(cout.getAndIncrement());
 
         return null;
     }

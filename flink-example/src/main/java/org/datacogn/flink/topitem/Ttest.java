@@ -284,7 +284,7 @@ public class Ttest {
 
         @Override
         public String toString() {
-            return "CustomTrigger";
+            return "CountTrigger";
         }
 
 //    @Override
