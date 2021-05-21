@@ -19,7 +19,7 @@
 
 
         <compiler.version>1.8</compiler.version>
-        <flink.version>1.8.0</flink.version>
+        <flink.version>1.9.2</flink.version>
         <java.version>1.8</java.version>
         <scala.binary.version>2.11</scala.binary.version>
 
